@@ -148,6 +148,31 @@
             line-height: 1.45;
         }
 
+        .manufacturer-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            border: 1.5px solid var(--danger);
+        }
+
+        .manufacturer-section .life-stage-label {
+            margin-bottom: 10px;
+        }
+
+        .manufacturer-warning {
+            background: #fff5f5;
+            border: 1.5px solid var(--danger);
+            color: var(--danger);
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
         .symptom-section {
             background: var(--surface);
             border-radius: 12px;
@@ -664,7 +689,8 @@
             line-height: 1.35;
         }
 
-        .tsumura-badge {
+        .tsumura-badge,
+        .product-badge {
             background: #eef3fa;
             color: var(--primary-light);
             padding: 3px 10px;
@@ -1004,7 +1030,22 @@
                     対象年齢: 乳幼児（0〜6歳）。7歳以上には使用しないでください。
                 </div>
                 <div class="notice-review" role="status">
-                    <strong>レビュー待ち:</strong> 漢方薬データ（適応・エビデンス・生薬量・年齢換算係数・危険閾値・ツムラ番号等）は医療従事者による内容確認前の暫定値です。実運用開始前に必ず検証してください。
+                    <strong>レビュー待ち:</strong> 漢方薬データ（適応・エビデンス・生薬量・年齢換算係数・危険閾値・製品番号等）は医療従事者による内容確認前の暫定値です。実運用開始前に必ず検証してください。
+                </div>
+
+                <div class="manufacturer-section">
+                    <span class="life-stage-label">メーカー <span class="required">*</span></span>
+                    <div class="segment-control" role="radiogroup" aria-label="メーカー">
+                        {% for mfr_key, mfr_info in manufacturers.items() %}
+                        <label class="segment-btn">
+                            <input type="radio" name="manufacturer" value="{{ mfr_key }}"{% if mfr_key == default_manufacturer %} checked{% endif %}>
+                            <span>{{ mfr_info.label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="manufacturer-warning" role="alert">
+                        ⚠️ メーカー別データは未検証です。生薬量・製品番号は一般的な漢方知識に基づく暫定値であり、差し替え前に必ず各メーカーの添付文書・インタビューフォームで確認してください。
+                    </div>
                 </div>
 
                 <div class="symptom-section">
@@ -1113,6 +1154,8 @@
     <script>
         const SYMPTOM_LIFE_STAGES = {{ symptom_life_stages|tojson }};
         const LIFE_STAGES = {{ life_stages|tojson }};
+        const MANUFACTURERS = {{ manufacturers|tojson }};
+        const DEFAULT_MANUFACTURER = {{ default_manufacturer|tojson }};
 
         document.querySelectorAll('input[name="symptom"]').forEach(checkbox => {
             checkbox.addEventListener('change', updateSelectedDisplay);
@@ -1120,6 +1163,10 @@
         document.querySelectorAll('input[name="life_stage"]').forEach(radio => {
             radio.addEventListener('change', onLifeStageChange);
         });
+        document.querySelectorAll('input[name="manufacturer"]').forEach(radio => {
+            radio.addEventListener('change', onManufacturerChange);
+        });
+        syncManufacturerSegmentSelected();
         updateCategoryBadges();
         updateAgeOptions();
 
@@ -1137,6 +1184,23 @@
             return hidden ? hidden.value : null;
         }
 
+        function getSelectedManufacturer() {
+            const el = document.querySelector('input[name="manufacturer"]:checked');
+            return el ? el.value : DEFAULT_MANUFACTURER;
+        }
+
+        function syncManufacturerSegmentSelected() {
+            document.querySelectorAll('.manufacturer-section .segment-btn').forEach(btn => {
+                const input = btn.querySelector('input[name="manufacturer"]');
+                btn.classList.toggle('selected', !!(input && input.checked));
+            });
+        }
+
+        function onManufacturerChange() {
+            syncManufacturerSegmentSelected();
+            showToast('メーカーを変更しました。処方候補・製品番号・安全性チェック結果が変わる場合があります。');
+        }
+
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -1146,7 +1210,7 @@
         }
 
         function syncSegmentSelected() {
-            document.querySelectorAll('.segment-btn').forEach(btn => {
+            document.querySelectorAll('.life-stage-section .segment-btn').forEach(btn => {
                 const input = btn.querySelector('input[name="life_stage"]');
                 btn.classList.toggle('selected', !!(input && input.checked));
             });
@@ -1260,6 +1324,9 @@
             syncSegmentSelected();
             updateAgeOptions();
             filterSymptomsByLifeStage();
+            const defaultMfrInput = document.querySelector(`input[name="manufacturer"][value="${DEFAULT_MANUFACTURER}"]`);
+            if (defaultMfrInput) defaultMfrInput.checked = true;
+            syncManufacturerSegmentSelected();
             document.querySelector('input[name="sho"][value="指定なし"]').checked = true;
             updateSelectedDisplay();
             document.getElementById('printBtn').style.display = 'none';
@@ -1312,6 +1379,7 @@
             const sho = document.querySelector('input[name="sho"]:checked').value;
             const life_stage = getSelectedLifeStage();
             const age_key = getSelectedAgeKey();
+            const manufacturer = getSelectedManufacturer();
 
             if (!life_stage) {
                 showError('ライフステージを選択してください。');
@@ -1319,6 +1387,10 @@
             }
             if (!age_key) {
                 showError('年齢区分を選択してください。');
+                return;
+            }
+            if (!manufacturer) {
+                showError('メーカーを選択してください。');
                 return;
             }
             if (symptoms.length === 0) {
@@ -1342,7 +1414,7 @@
                 const response = await fetch('/recommend', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symptoms, sho, life_stage, age_key }),
+                    body: JSON.stringify({ symptoms, sho, life_stage, age_key, manufacturer }),
                 });
 
                 const data = await response.json();
@@ -1368,6 +1440,14 @@
             const div = document.createElement('div');
             div.textContent = s == null ? '' : String(s);
             return div.innerHTML;
+        }
+
+        function formatProductBadge(manufacturer, productNo) {
+            const label = (MANUFACTURERS[manufacturer] && MANUFACTURERS[manufacturer].label) || manufacturer || DEFAULT_MANUFACTURER;
+            if (productNo == null) {
+                return `${escapeHtml(label)}（製品番号未確認・要IF検証）`;
+            }
+            return `${escapeHtml(label)}${escapeHtml(productNo)}番`;
         }
 
         function displayResults(data) {
@@ -1483,7 +1563,7 @@
                                 <span class="kampo-name">${escapeHtml(kampo.name)}</span>
                                 ${kampo.reading_kana ? `<span class="kampo-reading">${escapeHtml(kampo.reading_kana)}</span>` : ''}
                             </div>
-                            <span class="tsumura-badge">ツムラ${kampo.tsumura_no}番</span>
+                            <span class="product-badge">${formatProductBadge(kampo.manufacturer, kampo.product_no)}</span>
                             ${evBadge}${glBadge}
                         </div>
                         <div class="score-bar-wrap">
@@ -1528,7 +1608,7 @@
                         const rk = d.reading_kana
                             ? `<span class="drug-reading">${escapeHtml(d.reading_kana)}</span>`
                             : '';
-                        return `<span class="drug"><span>${escapeHtml(d.name)}（ツムラ${d.tsumura_no}番）</span>${rk}</span>`;
+                        return `<span class="drug"><span>${escapeHtml(d.name)}（${formatProductBadge(d.manufacturer, d.product_no)}）</span>${rk}</span>`;
                     }).join('<span class="plus">+</span>');
 
                     const safety = combo.safety || {};
@@ -1590,12 +1670,12 @@
                 <div class="reference-section">
                     <h4>参考文献・データソース</h4>
                     <ul>
-                        <li>ツムラ医療用漢方製剤 添付文書・インタビューフォーム（ツムラIF）</li>
+                        <li>ツムラ・クラシエ・コタロー各社 医療用漢方製剤 添付文書・インタビューフォーム</li>
                         <li>日本東洋医学会 EBM漢方（小児科領域）</li>
                         <li>日本小児心身医学会 関連ガイドライン</li>
                         <li>厚生労働省 保険適用医薬品リスト</li>
                     </ul>
-                    <p style="margin-top:10px;color:#744210;"><strong>注意:</strong> 表示データは医療レビュー前の暫定値です。実運用前に必ず内容確認を行ってください。</p>
+                    <p style="margin-top:10px;color:#744210;"><strong>注意:</strong> 表示データは医療レビュー前の暫定値です。実運用前に必ず内容確認を行ってください。特にメーカー別（ツムラ／クラシエ／コタロー）の生薬量・製品番号は未検証であり、選択中メーカー「${escapeHtml(data.manufacturer || '')}」の値を差し替え前に添付文書で必ず確認してください。</p>
                 </div>
             `;
 

@@ -113,7 +113,25 @@ VALID_AGE_KEYS = set(AGE_DOSE_FACTORS.keys())
 
 
 # =============================================================================
-# 症状データベース（4カテゴリ・26症状）
+# メーカー（追加指示#4・2026-08-09で新設）
+#
+# 【重要・医療安全性に関する警告】
+# メーカー別の製品番号・生薬量データはすべて一般的な漢方知識に基づく未検証の暫定値である。
+# 実運用開始前に薬剤師が各メーカー公式の添付文書・インタビューフォームで全件照合するまでは、
+# 複数メーカー選択機能自体を実務では使用しないこと。
+# =============================================================================
+
+MANUFACTURERS = {
+    "ツムラ": {"label": "ツムラ", "order": 1},
+    "クラシエ": {"label": "クラシエ", "order": 2},
+    "コタロー": {"label": "コタロー（小太郎漢方製薬）", "order": 3},
+}
+DEFAULT_MANUFACTURER = "ツムラ"
+VALID_MANUFACTURERS = set(MANUFACTURERS.keys())
+
+
+# =============================================================================
+# 症状データベース（4カテゴリ・28症状。初期案26症状 + 追加指示#2で2症状追加）
 # =============================================================================
 
 SYMPTOM_CATEGORIES = {
@@ -171,11 +189,21 @@ SYMPTOM_LIFE_STAGES = {
 # =============================================================================
 # 漢方薬データベース（保険適用漢方 - ツムラ番号は暫定値・要添付文書検証）
 # 小児科向け27処方（初期案19処方 + 追加指示#2で8処方追加）
+#
+# 【combinations.avoid の位置づけ】
+# 各処方の combinations.avoid は表示・注意喚起のための参考情報である。
+# 実際の併用安全性判定は COMBINATION_PATTERNS と check_combination_safety() による
+# 生薬量（甘草・麻黄・大黄・附子）の計算・閾値比較で行われ、avoid はどのロジックからも
+# 参照されない（誤解を避けるため、追加指示#3にて明記）。
 # =============================================================================
 
 KAMPO_DATABASE = {
     "小建中湯": {
-        "tsumura_no": 99,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 99, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "虚弱体質・腹痛・易疲労に。小児の虚弱体質改善の代表方",
@@ -205,7 +233,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": ["抑肝散", "六君子湯"],
             "possible": ["黄耆建中湯", "甘麦大棗湯"],
-            "avoid": [],
+            "avoid": ["芍薬甘草湯"],  # 甘草重複・高含有同士の併用回避
         },
         "side_effects": {
             "common": ["軟便", "胃部不快感"],
@@ -223,7 +251,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "黄耆建中湯": {
-        "tsumura_no": 98,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 98, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "小建中湯に黄耆を加えた方。盗汗・虚弱が強い児に",
@@ -270,7 +302,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "六君子湯": {
-        "tsumura_no": 43,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 43, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "胃腸虚弱・食欲不振の基本方。食が細い児に",
@@ -318,7 +354,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "人参湯": {
-        "tsumura_no": 32,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 32, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "胃腸虚弱で冷え・下痢傾向の強い児に。温裏補気の方",
@@ -365,7 +405,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "桂枝加芍薬湯": {
-        "tsumura_no": 60,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 60, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "腹痛・腹部膨満・便通異常に。過敏性腸症状様の児に",
@@ -394,7 +438,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": ["小建中湯"],
             "possible": ["六君子湯"],
-            "avoid": [],
+            "avoid": ["芍薬甘草湯"],  # 甘草重複・高含有同士の併用回避
         },
         "side_effects": {
             "common": ["軟便"],
@@ -412,7 +456,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "五苓散": {
-        "tsumura_no": 17,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 17, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "証を問わない",
         "description": "水滞に。嘔吐・下痢・むくみ・口渇を伴う胃腸炎様症状に",
@@ -459,7 +507,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "柴胡桂枝湯": {
-        "tsumura_no": 10,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 10, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証",
         "description": "感冒の遷延・腹痛を伴う体調不良・反復性の発熱傾向に",
@@ -506,7 +558,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "麦門冬湯": {
-        "tsumura_no": 29,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 29, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証〜中間証",
         "description": "乾性咳嗽・痰の少ない咳・咽の乾燥感に",
@@ -553,7 +609,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "五虎湯": {
-        "tsumura_no": 95,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 95, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証〜実証",
         "description": "喘鳴を伴う咳嗽・呼吸困難感に。麻黄含有のため乳幼児では慎重投与",
@@ -587,7 +647,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": [],
             "possible": ["小柴胡湯"],
-            "avoid": ["小青竜湯", "葛根湯", "越婢加朮湯"],  # 麻黄重複
+            "avoid": ["小青竜湯", "葛根湯", "越婢加朮湯", "麻黄湯", "五積散"],  # 麻黄重複
         },
         "side_effects": {
             "common": ["動悸", "不眠", "発汗", "興奮"],
@@ -605,7 +665,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "小青竜湯": {
-        "tsumura_no": 19,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 19, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証〜中間証",
         "description": "水様鼻汁・くしゃみ・喘鳴を伴う咳嗽に。麻黄含有のため乳幼児では慎重投与",
@@ -639,7 +703,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": [],
             "possible": ["五苓散"],
-            "avoid": ["五虎湯", "葛根湯", "越婢加朮湯"],  # 麻黄重複
+            "avoid": ["五虎湯", "葛根湯", "越婢加朮湯", "麻黄湯", "五積散"],  # 麻黄重複
         },
         "side_effects": {
             "common": ["動悸", "胃部不快感", "発汗", "不眠"],
@@ -657,7 +721,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "葛根湯": {
-        "tsumura_no": 1,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 1, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "実証",
         "description": "感冒初期の悪寒・項背部のこわばりに。麻黄含有のため乳幼児では慎重投与",
@@ -691,7 +759,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": [],
             "possible": [],
-            "avoid": ["五虎湯", "小青竜湯", "越婢加朮湯"],  # 麻黄重複
+            "avoid": ["五虎湯", "小青竜湯", "越婢加朮湯", "麻黄湯", "五積散"],  # 麻黄重複
         },
         "side_effects": {
             "common": ["発汗", "動悸", "胃部不快感"],
@@ -709,7 +777,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "小柴胡湯": {
-        "tsumura_no": 9,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 9, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証",
         "description": "感冒の遷延・微熱・胸脇苦満様の不調・中耳炎反復に",
@@ -756,7 +828,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "抑肝散": {
-        "tsumura_no": 54,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 54, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証〜中間証",
         "description": "夜泣き・かんしゃく・神経の高ぶりに。小児科で頻用される方剤",
@@ -804,7 +880,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "抑肝散加陳皮半夏": {
-        "tsumura_no": 83,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 83, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "抑肝散に胃腸保護を加えた方。胃腸虚弱で神経症状のある児に",
@@ -851,7 +931,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "甘麦大棗湯": {
-        "tsumura_no": 72,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 72, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "夜泣き・ひきつけ様の興奮・情緒不安定に。甘く服用しやすいが甘草量に注意",
@@ -883,7 +967,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": ["抑肝散", "小建中湯"],
             "possible": [],
-            "avoid": [],  # 甘草重複に注意（安全性チェックで判定）
+            "avoid": ["芍薬甘草湯"],  # 甘草重複・高含有同士の併用回避
         },
         "side_effects": {
             "common": ["浮腫", "軟便"],
@@ -901,7 +985,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["乳児期", "幼児期"],
     },
     "補中益気湯": {
-        "tsumura_no": 41,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 41, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "気虚の基本方。疲れやすい・食が細い・病後の回復に",
@@ -948,7 +1036,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "十全大補湯": {
-        "tsumura_no": 48,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 48, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "気血両虚に。病後・手術後・強度の虚弱に",
@@ -995,7 +1087,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "消風散": {
-        "tsumura_no": 22,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 22, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証〜実証",
         "description": "かゆみの強い湿疹・皮膚炎に。湿熱・風湿の皮膚症状向け",
@@ -1042,7 +1138,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "越婢加朮湯": {
-        "tsumura_no": 28,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 28, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "実証",
         "description": "熱感・腫脹を伴う湿疹・浮腫傾向に。麻黄含有のため乳幼児では慎重投与",
@@ -1076,7 +1176,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": [],
             "possible": ["消風散"],
-            "avoid": ["五虎湯", "小青竜湯", "葛根湯"],  # 麻黄重複
+            "avoid": ["五虎湯", "小青竜湯", "葛根湯", "麻黄湯", "五積散"],  # 麻黄重複
         },
         "side_effects": {
             "common": ["動悸", "不眠", "発汗"],
@@ -1100,7 +1200,11 @@ KAMPO_DATABASE = {
     # 実運用前に添付文書・インタビューフォームでの検証が必須。
     # =========================================================================
     "麻黄湯": {
-        "tsumura_no": 27,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 27, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "実証",
         "description": "感冒・インフルエンザ様の初期、悪寒・発熱・関節痛が強い実証の児に。麻黄含有のため乳幼児では慎重投与",
@@ -1152,7 +1256,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "桔梗湯": {
-        "tsumura_no": 138,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 138, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "実証〜中間証",
         "description": "咽頭痛・扁桃炎の急性期に。甘草含有量が多めのため長期連用は避ける",
@@ -1181,7 +1289,7 @@ KAMPO_DATABASE = {
         "combinations": {
             "recommended": [],
             "possible": ["小柴胡湯"],
-            "avoid": [],
+            "avoid": ["芍薬甘草湯"],  # 甘草重複・高含有同士の併用回避
         },
         "side_effects": {
             "common": ["胃部不快感"],
@@ -1199,7 +1307,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "温清飲": {
-        "tsumura_no": 57,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 57, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証〜虚証",
         "description": "血虚・血熱によるアトピー性皮膚炎・湿疹に。麻黄・大黄・附子は含まない想定",
@@ -1246,7 +1358,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "柴朴湯": {
-        "tsumura_no": 96,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 96, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証",
         "description": "小柴胡湯と半夏厚朴湯の合方。喘息傾向・咳嗽の遷延に不安・咽喉頭異物感を伴う場合に",
@@ -1293,7 +1409,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "半夏瀉心湯": {
-        "tsumura_no": 14,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 14, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "中間証",
         "description": "口内炎・下痢に。心下痞（胃部のつかえ）を伴う場合に用いる",
@@ -1340,7 +1460,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "芍薬甘草湯": {
-        "tsumura_no": 68,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 68, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "証を問わない",
         "description": "急な痙攣性の腹痛に頓用で用いる。甘草含有量が非常に多いため長期連用は避ける",
@@ -1390,7 +1514,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "五積散": {
-        "tsumura_no": 63,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 63, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証〜中間証",
         "description": "冷えを伴う感冒・体の痛みに。麻黄含有のため乳幼児では慎重投与",
@@ -1439,7 +1567,11 @@ KAMPO_DATABASE = {
         "life_stage_eligible": ["幼児期"],
     },
     "参蘇飲": {
-        "tsumura_no": 66,  # 暫定・要添付文書検証
+        "products": {
+            "ツムラ": {"product_no": 66, "available": True},
+            "クラシエ": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+            "コタロー": {"product_no": None, "available": True},  # 暫定: 製品番号未確認・取扱有無要確認（要IF検証）
+        },
         "insurance": True,
         "sho": "虚証",
         "description": "胃腸虚弱を伴う感冒に。麻黄は含まない想定で虚証の児に用いやすい",
@@ -1710,35 +1842,148 @@ SYMPTOM_KAMPO_WEIGHTS = {
 # 注記のある値は暫定。実運用前にIFで必ず検証すること。
 # =============================================================================
 
+# 【追加指示#4・2026-08-09】メーカー別ネスト構造に変更。
+# ツムラの値は既存（追加指示#2以前）の暫定値をそのまま移設。
+# クラシエ・コタローは製剤ごとのメーカー差の実データを持たないため、
+# 特記のない限り「同一の伝統的処方構成であり、ツムラと同値と仮定」とし、
+# 実際の含有量はメーカー各社の添付文書・インタビューフォームで必ず個別に検証すること。
 HERB_COMPONENTS = {
-    "小建中湯": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},
-    "黄耆建中湯": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 小建中湯系に準拠・要IF検証
-    "六君子湯": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
-    "人参湯": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: IF準拠想定・要検証
-    "桂枝加芍薬湯": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},
-    "五苓散": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},
-    "柴胡桂枝湯": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
-    "麦門冬湯": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 既存kanpoと同一
-    "五虎湯": {"甘草": 1.5, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
-    "小青竜湯": {"甘草": 3.0, "麻黄": 3.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
-    "葛根湯": {"甘草": 2.0, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
-    "小柴胡湯": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
-    "抑肝散": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
-    "抑肝散加陳皮半夏": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
-    "甘麦大棗湯": {"甘草": 5.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 単剤でも高含有
-    "補中益気湯": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
-    "十全大補湯": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
-    "消風散": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証（大黄非含有想定）
-    "越婢加朮湯": {"甘草": 2.0, "麻黄": 6.0, "大黄": 0, "附子": 0},
+    "小建中湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "黄耆建中湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 小建中湯系に準拠・要IF検証
+        "クラシエ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "六君子湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "人参湯": {
+        "ツムラ": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: IF準拠想定・要検証
+        "クラシエ": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "桂枝加芍薬湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "五苓散": {
+        "ツムラ": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "柴胡桂枝湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "麦門冬湯": {
+        "ツムラ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 既存kanpoと同一
+        "クラシエ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "五虎湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
+        "クラシエ": {"甘草": 1.5, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "小青竜湯": {
+        "ツムラ": {"甘草": 3.0, "麻黄": 3.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
+        "クラシエ": {"甘草": 3.0, "麻黄": 3.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 3.0, "麻黄": 3.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "葛根湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
+        "クラシエ": {"甘草": 2.0, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 4.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "小柴胡湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証
+        "クラシエ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "抑肝散": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "抑肝散加陳皮半夏": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "甘麦大棗湯": {
+        "ツムラ": {"甘草": 5.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 単剤でも高含有
+        "クラシエ": {"甘草": 5.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 5.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "補中益気湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "十全大補湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "消風散": {
+        "ツムラ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 要IF検証（大黄非含有想定）
+        "クラシエ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "越婢加朮湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 6.0, "大黄": 0, "附子": 0},
+        "クラシエ": {"甘草": 2.0, "麻黄": 6.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 6.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
     # 追加指示#2で追加された8処方（暫定値・要IF検証）
-    "麻黄湯": {"甘草": 1.5, "麻黄": 5.0, "大黄": 0, "附子": 0},  # 暫定: 麻黄含有量が多い代表処方・要IF検証
-    "桔梗湯": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 甘草高含有・要IF検証
-    "温清飲": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 麻黄・大黄・附子非含有想定・要IF検証
-    "柴朴湯": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 小柴胡湯+半夏厚朴湯の合方・要IF検証
-    "半夏瀉心湯": {"甘草": 2.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 甘草含有量が多め・要IF検証
-    "芍薬甘草湯": {"甘草": 6.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 甘草含有量が非常に多い（既存kanpoと同一値）
-    "五積散": {"甘草": 1.0, "麻黄": 2.0, "大黄": 0, "附子": 0},  # 麻黄含有（既存kanpoと同一値）
-    "参蘇飲": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 麻黄非含有想定・要IF検証
+    "麻黄湯": {
+        "ツムラ": {"甘草": 1.5, "麻黄": 5.0, "大黄": 0, "附子": 0},  # 暫定: 麻黄含有量が多い代表処方・要IF検証
+        "クラシエ": {"甘草": 1.5, "麻黄": 5.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.5, "麻黄": 5.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "桔梗湯": {
+        "ツムラ": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 甘草高含有・要IF検証
+        "クラシエ": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 3.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "温清飲": {
+        "ツムラ": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 麻黄・大黄・附子非含有想定・要IF検証
+        "クラシエ": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "柴朴湯": {
+        "ツムラ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 小柴胡湯+半夏厚朴湯の合方・要IF検証
+        "クラシエ": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "半夏瀉心湯": {
+        "ツムラ": {"甘草": 2.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 甘草含有量が多め・要IF検証
+        "クラシエ": {"甘草": 2.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 2.5, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "芍薬甘草湯": {
+        "ツムラ": {"甘草": 6.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 甘草含有量が非常に多い（既存kanpoと同一値）
+        "クラシエ": {"甘草": 6.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 6.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "五積散": {
+        "ツムラ": {"甘草": 1.0, "麻黄": 2.0, "大黄": 0, "附子": 0},  # 麻黄含有（既存kanpoと同一値）
+        "クラシエ": {"甘草": 1.0, "麻黄": 2.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.0, "麻黄": 2.0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
+    "参蘇飲": {
+        "ツムラ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: 麻黄非含有想定・要IF検証
+        "クラシエ": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+        "コタロー": {"甘草": 1.0, "麻黄": 0, "大黄": 0, "附子": 0},  # 暫定: ツムラと同値と仮定・要IF検証
+    },
 }
 
 # 併用リスク閾値（1日量 g）
@@ -1775,7 +2020,11 @@ HERB_RISK_THRESHOLDS = {
 }
 
 
-def check_combination_safety(kampo_list: List[str], age_key: Optional[str] = None) -> dict:
+def check_combination_safety(
+    kampo_list: List[str],
+    age_key: Optional[str] = None,
+    manufacturer: str = DEFAULT_MANUFACTURER,
+) -> dict:
     """
     2剤併用時の安全性チェック（小児科版）
 
@@ -1784,9 +2033,15 @@ def check_combination_safety(kampo_list: List[str], age_key: Optional[str] = Non
     AGE_DOSE_FACTORS[age_key] を乗じて年齢換算後の推定1日量とする。
     この係数適用は小児科版固有の処理であり、婦人科版には存在しない。
 
+    【追加指示#4・メーカー対応】
+    HERB_COMPONENTS[kampo] はメーカー別（ツムラ/クラシエ/コタロー）にネストされている。
+    指定メーカーにその処方のデータが存在しない場合は、エラーとせず安全側として
+    ツムラの値を代用し、結果に "data_fallback": True を含める。
+
     Args:
         kampo_list: 併用する漢方薬名のリスト
         age_key: 年齢区分キー（under_1 / 1-2 / 3-5 / 6）。未指定時は係数1.0（成人量）
+        manufacturer: メーカー名（ツムラ/クラシエ/コタロー）。未指定時は DEFAULT_MANUFACTURER
 
     Returns:
         dict: {
@@ -1798,19 +2053,32 @@ def check_combination_safety(kampo_list: List[str], age_key: Optional[str] = Non
             "dose_factor": float,
             "age_key": str | None,
             "age_mandatory_warning": str | None,  # 1歳未満時の必須警告
+            "manufacturer": str,
+            "data_fallback": bool,         # 指定メーカーのデータが無くツムラ値で代用した場合 True
         }
     """
+    if manufacturer not in VALID_MANUFACTURERS:
+        manufacturer = DEFAULT_MANUFACTURER
+
     # 小児科固有: 年齢用量換算係数を適用
     dose_factor = 1.0
     if age_key and age_key in AGE_DOSE_FACTORS:
         dose_factor = AGE_DOSE_FACTORS[age_key]
 
     herb_totals_adult = {"甘草": 0.0, "麻黄": 0.0, "大黄": 0.0, "附子": 0.0}
+    data_fallback = False
 
     for kampo in kampo_list:
-        if kampo in HERB_COMPONENTS:
-            for herb, amount in HERB_COMPONENTS[kampo].items():
-                herb_totals_adult[herb] += amount
+        if kampo not in HERB_COMPONENTS:
+            continue
+        by_manufacturer = HERB_COMPONENTS[kampo]
+        herb_amounts = by_manufacturer.get(manufacturer)
+        if herb_amounts is None:
+            # 指定メーカーのデータが無い場合は安全側でツムラ値を代用
+            herb_amounts = by_manufacturer.get(DEFAULT_MANUFACTURER, {})
+            data_fallback = True
+        for herb, amount in herb_amounts.items():
+            herb_totals_adult[herb] += amount
 
     # 年齢換算後の量で閾値判定（小児科固有）
     herb_totals = {h: round(v * dose_factor, 3) for h, v in herb_totals_adult.items()}
@@ -1859,11 +2127,13 @@ def check_combination_safety(kampo_list: List[str], age_key: Optional[str] = Non
         "dose_factor": dose_factor,
         "age_key": age_key,
         "age_mandatory_warning": age_mandatory_warning,
+        "manufacturer": manufacturer,
+        "data_fallback": data_fallback,
     }
 
 
 # =============================================================================
-# 2剤併用の推奨パターン（19処方から選定・暫定）
+# 2剤併用の推奨パターン（27処方から選定・暫定）
 # =============================================================================
 
 COMBINATION_PATTERNS = [
@@ -1999,16 +2269,35 @@ def _is_life_stage_eligible(kampo_name: str, life_stage: Optional[str]) -> bool:
     return life_stage in eligible
 
 
+def _is_manufacturer_available(kampo_name: str, manufacturer: Optional[str]) -> bool:
+    """
+    【追加指示#4】処方の products[manufacturer]["available"] が True かどうか。
+    manufacturer 未指定時、または該当メーカーのデータが無い場合は絞り込みを行わない（True）。
+    """
+    if not manufacturer:
+        return True
+    info = KAMPO_DATABASE.get(kampo_name)
+    if not info:
+        return False
+    product = (info.get("products") or {}).get(manufacturer)
+    if product is None:
+        return True
+    return bool(product.get("available", True))
+
+
 def calculate_kampo_scores(
     selected_symptoms: List[str],
     patient_sho: str = None,
     life_stage: str = None,
+    manufacturer: str = None,
 ) -> Dict[str, float]:
     """
     選択された症状から各漢方薬のスコアを計算（エビデンスベース強化版）
 
     小児科固有: life_stage が指定された場合、life_stage_eligible に
     含まれない処方はスコア集計対象外とする。
+    追加指示#4: manufacturer が指定された場合、products[manufacturer]["available"]
+    が False の処方もスコア集計対象外とする。
     """
     scores = {}
 
@@ -2018,6 +2307,8 @@ def calculate_kampo_scores(
                 if kampo not in KAMPO_DATABASE:
                     continue
                 if not _is_life_stage_eligible(kampo, life_stage):
+                    continue
+                if not _is_manufacturer_available(kampo, manufacturer):
                     continue
 
                 if isinstance(weight_data, int):
@@ -2093,13 +2384,16 @@ def get_top_recommendations(
     life_stage: str = None,
     age_key: str = None,
     dose_factor: float = None,
+    manufacturer: str = None,
 ) -> List[dict]:
     """
     上位の推奨漢方を取得（エビデンス情報付き）
 
     小児科固有: life_stage で候補をフィルタし、年齢換算用量メモを付与する。
+    追加指示#4: manufacturer で候補をフィルタし、選択メーカーの product_no を付与する。
     """
     sorted_kampo = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    effective_manufacturer = manufacturer if manufacturer in VALID_MANUFACTURERS else DEFAULT_MANUFACTURER
 
     if dose_factor is None:
         if age_key and age_key in AGE_DOSE_FACTORS:
@@ -2116,6 +2410,8 @@ def get_top_recommendations(
 
         if not _is_life_stage_eligible(kampo_name, life_stage):
             continue
+        if not _is_manufacturer_available(kampo_name, effective_manufacturer):
+            continue
 
         kampo_info = KAMPO_DATABASE[kampo_name]
 
@@ -2131,11 +2427,14 @@ def get_top_recommendations(
         nt = kampo_info.get("notes", {}) or {}
 
         age_note_excerpt = nt.get(note_key, "") if note_key else ""
+        product = (kampo_info.get("products") or {}).get(effective_manufacturer, {})
 
         results.append({
             "name": kampo_name,
             "score": round(score, 2),
-            "tsumura_no": kampo_info["tsumura_no"],
+            "manufacturer": effective_manufacturer,
+            "product_no": product.get("product_no"),
+            "product_available": product.get("available", True),
             "sho": kampo_info["sho"],
             "description": kampo_info["description"],
             "indications": kampo_info["indications"],
@@ -2164,10 +2463,12 @@ def find_combination_recommendations(
     selected_symptoms: List[str],
     age_key: str = None,
     life_stage: str = None,
+    manufacturer: str = None,
 ) -> List[dict]:
     """2剤併用の推奨を検索（安全性チェック付き・小児科版）"""
     recommendations = []
     top_names = [k["name"] for k in top_kampo]
+    effective_manufacturer = manufacturer if manufacturer in VALID_MANUFACTURERS else DEFAULT_MANUFACTURER
 
     for pattern in COMBINATION_PATTERNS:
         combo = pattern["combination"]
@@ -2176,19 +2477,26 @@ def find_combination_recommendations(
         if life_stage and not all(_is_life_stage_eligible(name, life_stage) for name in combo):
             continue
 
+        # 追加指示#4: 選択メーカーで取扱不可（available: False）の処方を含むパターンは除外
+        if not all(_is_manufacturer_available(name, effective_manufacturer) for name in combo):
+            continue
+
         match_count = sum(1 for k in combo if k in top_names)
         if match_count >= 1:
             combo_info = []
             for name in combo:
                 if name in KAMPO_DATABASE:
+                    product = (KAMPO_DATABASE[name].get("products") or {}).get(effective_manufacturer, {})
                     combo_info.append({
                         "name": name,
-                        "tsumura_no": KAMPO_DATABASE[name]["tsumura_no"],
+                        "manufacturer": effective_manufacturer,
+                        "product_no": product.get("product_no"),
                         "reading_kana": KAMPO_READING_KANA.get(name, ""),
                     })
 
             # 小児科固有: age_key を渡して年齢換算後に安全性チェック
-            safety_check = check_combination_safety(combo, age_key=age_key)
+            # 追加指示#4: manufacturer を渡してメーカー別の生薬量で判定
+            safety_check = check_combination_safety(combo, age_key=age_key, manufacturer=effective_manufacturer)
 
             recommendations.append({
                 "combination": combo_info,
@@ -2224,6 +2532,8 @@ def index():
         symptom_categories=SYMPTOM_CATEGORIES,
         life_stages=LIFE_STAGES,
         symptom_life_stages=SYMPTOM_LIFE_STAGES,
+        manufacturers=MANUFACTURERS,
+        default_manufacturer=DEFAULT_MANUFACTURER,
     )
 
 
@@ -2234,10 +2544,11 @@ def recommend():
     sho = data.get("sho", "指定なし")
     life_stage = data.get("life_stage")
     age_key = data.get("age_key")
+    manufacturer = data.get("manufacturer", DEFAULT_MANUFACTURER)
 
     log_operation(
         "recommend",
-        f"症状={str(selected_symptoms)[:80]}, life_stage={life_stage}, age_key={age_key}",
+        f"症状={str(selected_symptoms)[:80]}, life_stage={life_stage}, age_key={age_key}, manufacturer={manufacturer}",
     )
 
     if not selected_symptoms:
@@ -2248,6 +2559,9 @@ def recommend():
 
     if not age_key or age_key not in VALID_AGE_KEYS:
         return jsonify({"error": "年齢区分を選択してください。"}), 400
+
+    if not manufacturer or manufacturer not in VALID_MANUFACTURERS:
+        return jsonify({"error": "メーカー（ツムラ／クラシエ／コタロー）を選択してください。"}), 400
 
     # ライフステージと年齢区分の整合性チェック
     valid_keys_for_stage = {opt["key"] for opt in LIFE_STAGES[life_stage]["age_options"]}
@@ -2267,6 +2581,7 @@ def recommend():
         filtered_symptoms,
         patient_sho=sho,
         life_stage=life_stage,
+        manufacturer=manufacturer,
     )
 
     if not scores:
@@ -2279,6 +2594,7 @@ def recommend():
         life_stage=life_stage,
         age_key=age_key,
         dose_factor=dose_factor,
+        manufacturer=manufacturer,
     )
 
     combinations = find_combination_recommendations(
@@ -2286,6 +2602,7 @@ def recommend():
         filtered_symptoms,
         age_key=age_key,
         life_stage=life_stage,
+        manufacturer=manufacturer,
     )
 
     response_data = {
@@ -2294,11 +2611,13 @@ def recommend():
         "selected_symptoms": filtered_symptoms,
         "life_stage": life_stage,
         "age_key": age_key,
+        "manufacturer": manufacturer,
         "dose_factor": dose_factor,
         "scoring_info": {
             "evidence_based": True,
             "sho_matched": sho != "指定なし",
             "life_stage_filtered": True,
+            "manufacturer_filtered": True,
             "version": "pediatric-1.0",
         },
     }
