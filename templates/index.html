@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小児科漢方薬推奨システム</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👶</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary:      #1a3a5c;
+            --primary-light:#2255a0;
+            --accent:       #c8a94a;
+            --accent-light: #f0e0a0;
+            --danger:       #c0392b;
+            --warning:      #d4850a;
+            --success:      #1a7a4a;
+            --bg:           #f4f6f9;
+            --surface:      #ffffff;
+            --text-primary: #1a2a3a;
+            --text-secondary:#5a6a7a;
+            --border:       #dde3ea;
+            --shadow:       0 2px 8px rgba(26,58,92,0.08);
+            --shadow-lg:    0 4px 20px rgba(26,58,92,0.14);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Hiragino Sans', 'Meiryo', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* C-9: 2カラム（デスクトップ） */
+        .app-layout {
+            display: grid;
+            grid-template-columns: minmax(500px, 540px) 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .input-panel {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .result-panel {
+            min-height: 400px;
+        }
+
+        @media (min-width: 901px) {
+            .result-panel {
+                position: sticky;
+                top: 80px;
+                align-self: start;
+                max-height: calc(100vh - 100px);
+                overflow-y: auto;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+            .input-panel {
+                position: static;
+                max-height: none;
+                overflow-y: visible;
+                padding-right: 0;
+            }
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 28px 20px 24px;
+            text-align: center;
+            border-bottom: 3px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-lg);
+        }
+
+        header h1 {
+            font-size: 1.5em;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        header p {
+            font-size: 0.85em;
+            opacity: 0.8;
+            letter-spacing: 0.12em;
+        }
+
+        .notice {
+            background: #fff5f5;
+            border-left: 3px solid var(--danger);
+            color: var(--danger);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 0.82em;
+            line-height: 1.45;
+        }
+
+        .notice-review {
+            background: #fffbeb;
+            border-left: 3px solid var(--warning);
+            color: #744210;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 0.82em;
+            line-height: 1.45;
+        }
+
+        .symptom-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px 18px 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .symptom-section h2 {
+            color: var(--primary);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent);
+            font-size: 1.05em;
+        }
+
+        .life-stage-section {
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .life-stage-label {
+            display: block;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .life-stage-label .required {
+            color: var(--danger);
+        }
+
+        .segment-control {
+            display: flex;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .segment-btn {
+            flex: 1;
+            position: relative;
+            text-align: center;
+            padding: 10px 12px;
+            cursor: pointer;
+            background: var(--surface);
+            font-weight: 600;
+            font-size: 0.9em;
+            color: var(--text-primary);
+            transition: all 0.15s ease;
+            border-right: 1px solid var(--border);
+            user-select: none;
+        }
+
+        .segment-btn:last-child {
+            border-right: none;
+        }
+
+        .segment-btn input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .segment-btn:hover {
+            background: #eef3fa;
+        }
+
+        .segment-btn.selected,
+        .segment-btn:has(input:checked) {
+            background: var(--primary);
+            color: white;
+        }
+
+        .infant-warning {
+            background: #fff5f5;
+            border: 1.5px solid var(--danger);
+            color: var(--danger);
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            line-height: 1.45;
+        }
+
+        .age-options {
+            margin-top: 12px;
+        }
+
+        .age-options .age-placeholder {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+
+        .age-options .age-radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .age-options .age-radio-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875em;
+            background: var(--surface);
+            transition: all 0.15s ease;
+        }
+
+        .age-options .age-radio-label:hover {
+            border-color: var(--primary-light);
+            background: #eef3fa;
+        }
+
+        .age-options .age-radio-label:has(input:checked) {
+            border-color: var(--primary);
+            background: #eef3fa;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(16px);
+            background: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .dose-note {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: #eef3fa;
+            border-left: 3px solid var(--primary-light);
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--primary);
+            line-height: 1.45;
+        }
+
+        .age-specific-note {
+            margin-top: 6px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        .symptom-chip.hidden-by-stage {
+            display: none;
+        }
+
+        .symptom-category {
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .symptom-category-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875em;
+            color: var(--primary);
+            list-style: none;
+            user-select: none;
+            background: var(--surface);
+        }
+
+        .symptom-category-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .symptom-category-summary:hover {
+            background: #eef3fa;
+        }
+
+        .symptom-category[open] .symptom-category-summary {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chip-wrap {
+            padding: 10px 12px;
+            background: #fafcff;
+        }
+
+        .selected-count {
+            background: var(--primary);
+            color: white;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 0.75em;
+            font-weight: 700;
+            display: none;
+            min-width: 1.25em;
+            text-align: center;
+        }
+
+        .selected-count.has-selection {
+            display: inline-block;
+        }
+
+        .symptom-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 7px 14px;
+            margin: 4px 3px;
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--surface);
+            color: var(--text-primary);
+            user-select: none;
+        }
+
+        .symptom-chip:hover {
+            border-color: var(--primary-light);
+            background: #eef3fa;
+        }
+
+        .symptom-chip input[type="checkbox"] {
+            display: none;
+        }
+
+        .symptom-chip.selected,
+        .symptom-chip:has(input:checked) {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 2px 6px rgba(26,58,92,0.3);
+        }
+
+        .sho-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 20px 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .sho-section h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .sho-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+        }
+
+        .sho-card {
+            position: relative;
+            text-align: center;
+            padding: 16px 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--surface);
+        }
+
+        .sho-card:hover {
+            border-color: var(--primary-light);
+            background: #eef3fa;
+        }
+
+        .sho-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .sho-card .sho-icon {
+            font-size: 1.8em;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .sho-card .sho-label {
+            font-size: 0.875em;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sho-card .sho-desc {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .sho-card:has(input:checked) {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .sho-card:has(input:checked) .sho-label,
+        .sho-card:has(input:checked) .sho-desc {
+            color: white;
+        }
+
+        .sho-estimate {
+            margin-top: 15px;
+        }
+
+        .sho-estimate-result {
+            margin-top: 10px;
+            padding: 10px 15px;
+            background: #eef3fa;
+            border-left: 4px solid var(--primary-light);
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: var(--text-primary);
+        }
+
+        .button-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .form-error {
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            margin-bottom: 16px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-outline {
+            background: var(--surface);
+            color: var(--primary);
+            border: 2px solid var(--primary-light);
+        }
+
+        .btn-outline:hover {
+            background: #eef3fa;
+        }
+
+        .selected-symptoms {
+            background: #eef3fa;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+            border: 1px solid var(--border);
+        }
+
+        .selected-symptoms strong {
+            color: var(--primary);
+        }
+
+        .results-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            min-height: 200px;
+        }
+
+        .results-section h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent);
+        }
+
+        .results-section h3 {
+            color: var(--primary);
+            margin: 20px 0 15px;
+        }
+
+        .kampo-card {
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 24px;
+            margin-bottom: 18px;
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.2s;
+            animation: fadeInUp 0.3s ease both;
+        }
+
+        .kampo-list > .kampo-card:nth-child(1) { animation-delay: 0.05s; }
+        .kampo-list > .kampo-card:nth-child(2) { animation-delay: 0.12s; }
+        .kampo-list > .kampo-card:nth-child(3) { animation-delay: 0.19s; }
+
+        .kampo-card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kampo-card.rank-1 {
+            border-left: 4px solid var(--accent);
+        }
+
+        .kampo-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .rank-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+
+        .rank-1 .rank-badge {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        .kampo-name-block {
+            flex: 1 1 160px;
+            min-width: 140px;
+        }
+
+        .kampo-name {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+            line-height: 1.3;
+        }
+
+        .kampo-reading {
+            display: block;
+            font-size: 0.78em;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+
+        .tsumura-badge {
+            background: #eef3fa;
+            color: var(--primary-light);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-weight: 600;
+            border: 1px solid #c8d8f0;
+        }
+
+        .evidence-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .ev-A { background: #e8f4e8; color: #1a6a1a; border: 1px solid #8cc88c; }
+        .ev-B { background: #e8f0f8; color: #1a4a8a; border: 1px solid #8ab0d8; }
+        .ev-C { background: #f8f0e0; color: #7a5a00; border: 1px solid #d0b060; }
+        .ev-D { background: #f0f0f0; color: #5a5a5a; border: 1px solid #c0c0c0; }
+        .ev-1 { background: #e8f4e8; color: #1a5a3a; border: 1px solid #7cb89a; }
+        .ev-2 { background: #e8eef8; color: #1a4a7a; border: 1px solid #8aa8d0; }
+
+        .score-bar-wrap {
+            background: #eef3fa;
+            border-radius: 20px;
+            height: 8px;
+            margin: 8px 0 14px;
+            overflow: hidden;
+        }
+
+        .score-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            border-radius: 20px;
+            transition: width 0.5s ease;
+        }
+
+        .kampo-info {
+            display: grid;
+            gap: 8px;
+            font-size: 0.95em;
+        }
+
+        .kampo-info .info-row .label {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-right: 6px;
+        }
+
+        .kampo-info .score {
+            color: var(--primary-light);
+            font-weight: bold;
+        }
+
+        .kampo-info .indications {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .kampo-info .indication-tag {
+            background: #e8eef8;
+            color: var(--primary-light);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .warning-text {
+            color: var(--danger);
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+
+        .notes-detail {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .notes-detail summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .notes-detail ul {
+            margin: 8px 0 0 1.2em;
+            color: var(--text-primary);
+        }
+
+        .combination-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px dashed var(--border);
+        }
+
+        .combination-card {
+            background: linear-gradient(135deg, #f4f6fb, #eef3fa);
+            border: 1px solid #c8d8e8;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            animation: fadeInUp 0.3s ease both;
+        }
+
+        .combination-card h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .combination-card .combo-drugs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .combination-card .drug {
+            background: var(--primary-light);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            max-width: 100%;
+        }
+
+        .combination-card .drug .drug-reading {
+            font-size: 0.72em;
+            font-weight: 500;
+            opacity: 0.92;
+            letter-spacing: 0.05em;
+            line-height: 1.25;
+        }
+
+        .combination-card .plus {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .reference-section {
+            margin-top: 30px;
+            padding: 15px 20px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .reference-section h4 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .loading-spinner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+
+        .spinner-ring {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .error-message {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            color: var(--danger);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .combo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .safety-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .safety-badge.safe {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .safety-badge.warning {
+            background: #fefcbf;
+            color: #744210;
+        }
+
+        .safety-badge.danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .combination-card.unsafe {
+            background: linear-gradient(135deg, #fff5f5, #fde8e8);
+            border-color: #f5a0a0;
+        }
+
+        .safety-warning {
+            background: #fffff0;
+            border: 1px solid #ecc94b;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #744210;
+        }
+
+        .safety-danger {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #742a2a;
+        }
+
+        .herb-totals {
+            background: #edf2f7;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            color: #4a5568;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .side-effects-box {
+            background: #fffaf0;
+            border: 1px solid #ed8936;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 0.9em;
+        }
+
+        .se-header {
+            font-weight: bold;
+            color: #c05621;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .se-common {
+            color: #744210;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .se-rare {
+            color: #9c4221;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .se-note {
+            color: var(--primary-light);
+            display: block;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e0;
+            font-size: 0.95em;
+        }
+
+        @media print {
+            header, .input-panel {
+                display: none !important;
+            }
+            .app-layout {
+                display: block;
+            }
+            .results-section {
+                box-shadow: none;
+                padding: 0;
+            }
+            .kampo-card, .combination-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            body {
+                font-size: 11pt;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.35em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>小児科漢方薬推奨システム</h1>
+        <p>Kampo Recommender for Pediatrics</p>
+    </header>
+
+    <div class="container">
+        <div class="app-layout">
+            <aside class="input-panel">
+                <div class="notice">
+                    <strong>重要:</strong> 医療従事者向け参考ツールです。処方判断は必ず医師が行ってください。<br>
+                    対象年齢: 乳幼児（0〜6歳）。7歳以上には使用しないでください。
+                </div>
+                <div class="notice-review" role="status">
+                    <strong>レビュー待ち:</strong> 漢方薬データ（適応・エビデンス・生薬量・年齢換算係数・危険閾値・ツムラ番号等）は医療従事者による内容確認前の暫定値です。実運用開始前に必ず検証してください。
+                </div>
+
+                <div class="symptom-section">
+                    <h2>症状を選択してください</h2>
+
+                    <div class="life-stage-section">
+                        <span class="life-stage-label">ライフステージ <span class="required">*</span></span>
+                        <div class="segment-control" role="radiogroup" aria-label="ライフステージ">
+                            {% for stage_key, stage_info in life_stages.items() %}
+                            <label class="segment-btn">
+                                <input type="radio" name="life_stage" value="{{ stage_key }}">
+                                <span>{{ stage_key }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div id="infantWarning" class="infant-warning" style="display:none;" role="alert">
+                            1歳未満は医師の個別判断が必須です。参考情報としてのみご使用ください。
+                        </div>
+                        <div class="age-options" id="ageOptions">
+                            <p class="age-placeholder">選択してください</p>
+                        </div>
+                    </div>
+
+                    {% for category, symptoms in symptom_categories.items() %}
+                    <details class="symptom-category"{% if loop.index == 1 %} open{% endif %}>
+                        <summary class="symptom-category-summary">
+                            {{ category }}
+                            <span class="selected-count" data-category="{{ category }}"></span>
+                        </summary>
+                        <div class="chip-wrap">
+                            {% for symptom in symptoms %}
+                            {% set stages = symptom_life_stages.get(symptom, []) %}
+                            <label class="symptom-chip" data-life-stages="{{ stages|join(',') }}">
+                                <input type="checkbox" name="symptom" value="{{ symptom }}">
+                                {{ symptom }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+
+                <div class="sho-section">
+                    <h3>患者の証（体質）</h3>
+                    <div class="sho-cards">
+                        <label class="sho-card">
+                            <input type="radio" name="sho" value="指定なし" checked>
+                            <span class="sho-icon">○</span>
+                            <span class="sho-label">指定なし</span>
+                            <span class="sho-desc"></span>
+                        </label>
+                        <label class="sho-card">
+                            <input type="radio" name="sho" value="虚証">
+                            <span class="sho-icon">虚</span>
+                            <span class="sho-label">虚証</span>
+                            <span class="sho-desc">体力がない</span>
+                        </label>
+                        <label class="sho-card">
+                            <input type="radio" name="sho" value="中間証">
+                            <span class="sho-icon">中</span>
+                            <span class="sho-label">中間証</span>
+                            <span class="sho-desc">どちらでもない</span>
+                        </label>
+                        <label class="sho-card">
+                            <input type="radio" name="sho" value="実証">
+                            <span class="sho-icon">実</span>
+                            <span class="sho-label">実証</span>
+                            <span class="sho-desc">体力がある</span>
+                        </label>
+                    </div>
+                    <div class="sho-estimate">
+                        <button type="button" class="btn btn-outline" onclick="estimateSho()">症状から証の傾向を見る（参考）</button>
+                        <div id="shoEstimateResult" class="sho-estimate-result" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="button-section">
+                    <button type="button" class="btn btn-primary" onclick="recommend()">漢方薬を推奨</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearAll()">クリア</button>
+                    <button type="button" class="btn btn-outline" id="printBtn" onclick="window.print()" style="display:none;">
+                        印刷 / PDF保存
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="recalcBtn" style="display:none;">
+                        条件を保持して再計算
+                    </button>
+                </div>
+
+                <div id="formError" class="form-error" style="display:none;" role="alert"></div>
+
+                <div class="selected-symptoms" id="selectedDisplay">
+                    <strong>選択中の症状:</strong> <span id="selectedList">なし</span>
+                </div>
+            </aside>
+
+            <main class="result-panel">
+                <div class="results-section" id="results">
+                    <h2>推奨結果</h2>
+                    <p style="color: var(--text-secondary);">症状を選択して「漢方薬を推奨」ボタンをクリックしてください。</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        const SYMPTOM_LIFE_STAGES = {{ symptom_life_stages|tojson }};
+        const LIFE_STAGES = {{ life_stages|tojson }};
+
+        document.querySelectorAll('input[name="symptom"]').forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedDisplay);
+        });
+        document.querySelectorAll('input[name="life_stage"]').forEach(radio => {
+            radio.addEventListener('change', onLifeStageChange);
+        });
+        updateCategoryBadges();
+        updateAgeOptions();
+
+        document.getElementById('recalcBtn').addEventListener('click', () => recommend());
+
+        function getSelectedLifeStage() {
+            const el = document.querySelector('input[name="life_stage"]:checked');
+            return el ? el.value : null;
+        }
+
+        function getSelectedAgeKey() {
+            const radio = document.querySelector('input[name="age_key"]:checked');
+            if (radio) return radio.value;
+            const hidden = document.querySelector('input[type="hidden"][name="age_key"]');
+            return hidden ? hidden.value : null;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
+        }
+
+        function syncSegmentSelected() {
+            document.querySelectorAll('.segment-btn').forEach(btn => {
+                const input = btn.querySelector('input[name="life_stage"]');
+                btn.classList.toggle('selected', !!(input && input.checked));
+            });
+        }
+
+        function updateAgeOptions() {
+            const stage = getSelectedLifeStage();
+            const container = document.getElementById('ageOptions');
+            const infantWarning = document.getElementById('infantWarning');
+
+            if (!stage || !LIFE_STAGES[stage]) {
+                container.innerHTML = '<p class="age-placeholder">選択してください</p>';
+                infantWarning.style.display = 'none';
+                return;
+            }
+
+            const info = LIFE_STAGES[stage];
+            if (stage === '乳児期') {
+                infantWarning.style.display = 'block';
+                const opt = info.age_options[0];
+                container.innerHTML = `
+                    <div class="age-radio-group">
+                        <label class="age-radio-label">
+                            <input type="radio" name="age_key" value="${escapeHtml(opt.key)}" checked>
+                            ${escapeHtml(opt.label)}
+                        </label>
+                    </div>
+                `;
+            } else {
+                infantWarning.style.display = 'none';
+                const options = info.age_options.map(opt => `
+                    <label class="age-radio-label">
+                        <input type="radio" name="age_key" value="${escapeHtml(opt.key)}">
+                        ${escapeHtml(opt.label)}
+                    </label>
+                `).join('');
+                container.innerHTML = `<div class="age-radio-group">${options}</div>`;
+            }
+        }
+
+        function filterSymptomsByLifeStage() {
+            const stage = getSelectedLifeStage();
+            let deselected = 0;
+
+            document.querySelectorAll('.symptom-chip').forEach(chip => {
+                const stagesAttr = chip.getAttribute('data-life-stages') || '';
+                const stages = stagesAttr.split(',').map(s => s.trim()).filter(Boolean);
+                const eligible = !stage || stages.length === 0 || stages.includes(stage);
+
+                if (eligible) {
+                    chip.classList.remove('hidden-by-stage');
+                } else {
+                    chip.classList.add('hidden-by-stage');
+                    const cb = chip.querySelector('input[name="symptom"]');
+                    if (cb && cb.checked) {
+                        cb.checked = false;
+                        deselected++;
+                    }
+                }
+            });
+
+            if (deselected > 0) {
+                showToast(`ライフステージ変更により ${deselected} 件の症状選択を解除しました`);
+            }
+            updateSelectedDisplay();
+        }
+
+        function onLifeStageChange() {
+            syncSegmentSelected();
+            updateAgeOptions();
+            filterSymptomsByLifeStage();
+        }
+
+        function updateCategoryBadges() {
+            document.querySelectorAll('.symptom-category').forEach(details => {
+                const count = details.querySelectorAll('input[name="symptom"]:checked').length;
+                const badge = details.querySelector('.selected-count');
+                if (badge) {
+                    badge.textContent = count > 0 ? String(count) : '';
+                    badge.classList.toggle('has-selection', count > 0);
+                }
+            });
+        }
+
+        function updateSelectedDisplay() {
+            const selected = Array.from(document.querySelectorAll('input[name="symptom"]:checked'))
+                .map(cb => cb.value);
+            document.getElementById('selectedList').textContent =
+                selected.length > 0 ? selected.join('、') : 'なし';
+            updateCategoryBadges();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('formError');
+            el.textContent = msg;
+            el.style.display = 'block';
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        function hideFormError() {
+            const el = document.getElementById('formError');
+            el.style.display = 'none';
+            el.textContent = '';
+        }
+
+        function clearAll() {
+            hideFormError();
+            document.querySelectorAll('input[name="symptom"]').forEach(cb => cb.checked = false);
+            document.querySelectorAll('input[name="life_stage"]').forEach(r => r.checked = false);
+            syncSegmentSelected();
+            updateAgeOptions();
+            filterSymptomsByLifeStage();
+            document.querySelector('input[name="sho"][value="指定なし"]').checked = true;
+            updateSelectedDisplay();
+            document.getElementById('printBtn').style.display = 'none';
+            document.getElementById('recalcBtn').style.display = 'none';
+            document.getElementById('results').innerHTML = `
+                <h2>推奨結果</h2>
+                <p style="color: var(--text-secondary);">症状を選択して「漢方薬を推奨」ボタンをクリックしてください。</p>
+            `;
+            const shoEstimateResult = document.getElementById('shoEstimateResult');
+            shoEstimateResult.style.display = 'none';
+            shoEstimateResult.textContent = '';
+        }
+
+        async function estimateSho() {
+            hideFormError();
+            const symptoms = Array.from(document.querySelectorAll('input[name="symptom"]:checked'))
+                .map(cb => cb.value);
+            const resultDiv = document.getElementById('shoEstimateResult');
+
+            if (symptoms.length === 0) {
+                showError('症状を1つ以上選択してください。');
+                return;
+            }
+
+            try {
+                const response = await fetch('/estimate-sho', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptoms }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '証の推定に失敗しました');
+                }
+
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = `参考: ${data.message}`;
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = error.message;
+            }
+        }
+
+        async function recommend() {
+            hideFormError();
+            const symptoms = Array.from(document.querySelectorAll('input[name="symptom"]:checked'))
+                .map(cb => cb.value);
+            const sho = document.querySelector('input[name="sho"]:checked').value;
+            const life_stage = getSelectedLifeStage();
+            const age_key = getSelectedAgeKey();
+
+            if (!life_stage) {
+                showError('ライフステージを選択してください。');
+                return;
+            }
+            if (!age_key) {
+                showError('年齢区分を選択してください。');
+                return;
+            }
+            if (symptoms.length === 0) {
+                showError('症状を1つ以上選択してください。');
+                return;
+            }
+
+            document.getElementById('printBtn').style.display = 'none';
+            document.getElementById('recalcBtn').style.display = 'none';
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h2>推奨結果</h2>
+                <div class="loading-spinner">
+                    <div class="spinner-ring"></div>
+                    <p>解析中...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptoms, sho, life_stage, age_key }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '推奨の取得に失敗しました');
+                }
+
+                displayResults(data);
+                document.getElementById('printBtn').style.display = 'inline-flex';
+                document.getElementById('recalcBtn').style.display = 'inline-flex';
+            } catch (error) {
+                document.getElementById('printBtn').style.display = 'none';
+                document.getElementById('recalcBtn').style.display = 'none';
+                resultsDiv.innerHTML = `
+                    <h2>推奨結果</h2>
+                    <div class="error-message">${escapeHtml(error.message)}</div>
+                `;
+            }
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s == null ? '' : String(s);
+            return div.innerHTML;
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            let html = '<h2>推奨結果</h2>';
+
+            const showInfantWarn = data.age_warning
+                || data.life_stage === '乳児期'
+                || data.age_key === 'under_1';
+            if (showInfantWarn) {
+                const warnText = data.age_warning
+                    || '1歳未満は医師の個別判断が必須です。参考情報としてのみご使用ください。';
+                html += `<div class="infant-warning" role="alert">${escapeHtml(warnText)}</div>`;
+            }
+
+            html += '<h3>推奨漢方薬 TOP 3</h3>';
+
+            if ((!data.recommendations || data.recommendations.length === 0) && data.message) {
+                html += `<div class="error-message">${escapeHtml(data.message)}</div>`;
+                resultsDiv.innerHTML = html;
+                return;
+            }
+
+            html += '<div class="kampo-list">';
+
+            const maxScore = data.recommendations.length
+                ? Math.max(...data.recommendations.map(k => k.score))
+                : 0;
+
+            data.recommendations.forEach((kampo, index) => {
+                let sideEffectsHtml = '';
+                if (kampo.side_effects) {
+                    const se = kampo.side_effects;
+                    const seItems = [];
+                    if (se.common && se.common.length > 0) {
+                        seItems.push(`<span class="se-common">主な副作用: ${escapeHtml(se.common.join('、'))}</span>`);
+                    }
+                    if (se.rare && se.rare.length > 0) {
+                        seItems.push(`<span class="se-rare">稀な副作用: ${escapeHtml(se.rare.join('、'))}</span>`);
+                    }
+                    if (se.note) {
+                        seItems.push(`<span class="se-note">${escapeHtml(se.note)}</span>`);
+                    }
+                    if (seItems.length > 0) {
+                        sideEffectsHtml = `
+                            <div class="side-effects-box">
+                                <div class="se-header">副作用・注意点</div>
+                                ${seItems.join('<br>')}
+                            </div>
+                        `;
+                    }
+                }
+
+                let notesHtml = '';
+                if (kampo.notes) {
+                    const noteItems = [];
+                    if (kampo.notes.age_under_1) noteItems.push(`1歳未満: ${kampo.notes.age_under_1}`);
+                    if (kampo.notes.age_1_2) noteItems.push(`1〜2歳: ${kampo.notes.age_1_2}`);
+                    if (kampo.notes.age_3_5) noteItems.push(`3〜5歳: ${kampo.notes.age_3_5}`);
+                    if (kampo.notes.age_6) noteItems.push(`6歳: ${kampo.notes.age_6}`);
+                    if (kampo.notes.caution) noteItems.push(`服用上の注意: ${kampo.notes.caution}`);
+                    if (noteItems.length > 0) {
+                        notesHtml = `
+                            <details class="notes-detail">
+                                <summary>年齢別・服用上の注意メモ</summary>
+                                <ul>${noteItems.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>
+                            </details>
+                        `;
+                    }
+                }
+
+                let doseNoteHtml = '';
+                if (kampo.age_adjusted_dose_note) {
+                    doseNoteHtml += `<div class="dose-note">${escapeHtml(kampo.age_adjusted_dose_note)}</div>`;
+                }
+                if (kampo.age_specific_note) {
+                    doseNoteHtml += `<div class="age-specific-note">${escapeHtml(kampo.age_specific_note)}</div>`;
+                }
+
+                const rankClass = index === 0 ? 'rank-1' : '';
+                const barWidth = maxScore > 0 ? Math.round((kampo.score / maxScore) * 100) : 0;
+
+                const evLevel = kampo.evidence_level || (kampo.evidence && kampo.evidence.level) || '';
+                const glGrade = kampo.guideline_grade || (kampo.evidence && kampo.evidence.guideline_grade) || '';
+                const evBadge = evLevel
+                    ? `<span class="evidence-badge ev-${evLevel}">Ev.${escapeHtml(evLevel)}</span>`
+                    : '';
+                const glChar = glGrade ? String(glGrade).charAt(0) : '';
+                const glBadge = glGrade
+                    ? `<span class="evidence-badge ev-${glChar}">GL.${escapeHtml(glGrade)}</span>`
+                    : '';
+
+                const onsetInitial = kampo.onset_initial || (kampo.onset && kampo.onset.initial) || '';
+                const onsetOptimal = kampo.onset_optimal || (kampo.onset && kampo.onset.optimal) || '';
+                const onsetHtml = onsetInitial
+                    ? `<div class="info-row"><span class="label">効果発現:</span> 初期 ${escapeHtml(onsetInitial)} / 最適 ${onsetOptimal ? escapeHtml(onsetOptimal) : '—'}</div>`
+                    : '';
+
+                const eff = kampo.efficacy_rate != null ? kampo.efficacy_rate : (kampo.evidence && kampo.evidence.efficacy_rate);
+                const effHtml = (typeof eff === 'number')
+                    ? `<div class="info-row"><span class="label">有効率（参考・文献ベース）:</span> ${Math.round(eff * 100)}%</div>`
+                    : '';
+
+                const prec = kampo.precautions && kampo.precautions.length > 0
+                    ? `<div class="info-row"><span class="label">注意:</span> ${escapeHtml(kampo.precautions.join('、'))}</div>`
+                    : '';
+
+                html += `
+                    <div class="kampo-card ${rankClass}">
+                        <div class="kampo-card-header">
+                            <span class="rank-badge">${index + 1}</span>
+                            <div class="kampo-name-block">
+                                <span class="kampo-name">${escapeHtml(kampo.name)}</span>
+                                ${kampo.reading_kana ? `<span class="kampo-reading">${escapeHtml(kampo.reading_kana)}</span>` : ''}
+                            </div>
+                            <span class="tsumura-badge">ツムラ${kampo.tsumura_no}番</span>
+                            ${evBadge}${glBadge}
+                        </div>
+                        <div class="score-bar-wrap">
+                            <div class="score-bar" style="width:${barWidth}%"></div>
+                        </div>
+                        <div class="kampo-info">
+                            <div class="info-row"><span class="label">適合スコア:</span> <span class="score">${kampo.score}</span></div>
+                            <div class="info-row"><span class="label">証:</span> ${escapeHtml(kampo.sho)}</div>
+                            <div class="info-row"><span class="label">説明:</span> ${escapeHtml(kampo.description)}</div>
+                            ${doseNoteHtml}
+                            ${effHtml}
+                            ${onsetHtml}
+                            <div class="info-row"><span class="label">適応:</span></div>
+                            <div class="indications">
+                                ${[].concat(
+                                    (kampo.indications && kampo.indications.primary) || [],
+                                    (kampo.indications && kampo.indications.secondary) || [],
+                                    (kampo.indications && kampo.indications.off_label) || []
+                                ).map(i => `<span class="indication-tag">${escapeHtml(i)}</span>`).join('')}
+                            </div>
+                            ${kampo.contraindications && kampo.contraindications.length > 0
+                                ? `<div class="warning-text">禁忌・慎重投与: ${escapeHtml(kampo.contraindications.join('、'))}</div>`
+                                : ''}
+                            ${prec}
+                            ${sideEffectsHtml}
+                        </div>
+                        ${notesHtml}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            if (data.combinations && data.combinations.length > 0) {
+                html += `
+                    <div class="combination-section">
+                        <h3>2剤併用の提案（安全性チェック付き）</h3>
+                `;
+
+                data.combinations.forEach(combo => {
+                    const drugs = combo.combination.map(d => {
+                        const rk = d.reading_kana
+                            ? `<span class="drug-reading">${escapeHtml(d.reading_kana)}</span>`
+                            : '';
+                        return `<span class="drug"><span>${escapeHtml(d.name)}（ツムラ${d.tsumura_no}番）</span>${rk}</span>`;
+                    }).join('<span class="plus">+</span>');
+
+                    const safety = combo.safety || {};
+                    let safetyBadge = '';
+                    let safetyDetail = '';
+
+                    if (safety.age_mandatory_warning) {
+                        safetyDetail += `<div class="safety-danger"><strong>${escapeHtml(safety.age_mandatory_warning)}</strong></div>`;
+                    }
+
+                    if (safety.dangers && safety.dangers.length > 0) {
+                        safetyBadge = '<span class="safety-badge danger">併用注意</span>';
+                        safetyDetail += safety.dangers.map(d =>
+                            `<div class="safety-danger">
+                                <strong>${escapeHtml(d.herb)}過量リスク (${d.total_amount}g/日)</strong><br>
+                                ${escapeHtml(d.risk_name)}: ${escapeHtml(d.symptoms)}
+                            </div>`
+                        ).join('');
+                    } else if (safety.warnings && safety.warnings.length > 0) {
+                        safetyBadge = '<span class="safety-badge warning">要注意</span>';
+                        safetyDetail += safety.warnings.map(w =>
+                            `<div class="safety-warning">
+                                <strong>${escapeHtml(w.herb)}注意 (${w.total_amount}g/日)</strong><br>
+                                ${escapeHtml(w.risk_name)}のリスク: ${escapeHtml(w.symptoms)}
+                            </div>`
+                        ).join('');
+                    } else if (!safetyBadge) {
+                        safetyBadge = '<span class="safety-badge safe">併用可</span>';
+                    }
+
+                    let herbTotals = '';
+                    if (safety.herb_totals && Object.keys(safety.herb_totals).length > 0) {
+                        const totals = Object.entries(safety.herb_totals)
+                            .map(([herb, amount]) => `${herb} ${amount}g`)
+                            .join('、');
+                        herbTotals = `<div class="herb-totals">年齢換算後の生薬合計: ${escapeHtml(totals)}/日</div>`;
+                    }
+
+                    html += `
+                        <div class="combination-card ${!safety.safe ? 'unsafe' : ''}">
+                            <div class="combo-header">
+                                <div class="combo-drugs">${drugs}</div>
+                                ${safetyBadge}
+                            </div>
+                            <div><strong>適応:</strong> ${escapeHtml(combo.indication)}</div>
+                            <div style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">
+                                <strong>備考:</strong> ${escapeHtml(combo.note)}
+                            </div>
+                            ${herbTotals}
+                            ${safetyDetail}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            html += `
+                <div class="reference-section">
+                    <h4>参考文献・データソース</h4>
+                    <ul>
+                        <li>ツムラ医療用漢方製剤 添付文書・インタビューフォーム（ツムラIF）</li>
+                        <li>日本東洋医学会 EBM漢方（小児科領域）</li>
+                        <li>日本小児心身医学会 関連ガイドライン</li>
+                        <li>厚生労働省 保険適用医薬品リスト</li>
+                    </ul>
+                    <p style="margin-top:10px;color:#744210;"><strong>注意:</strong> 表示データは医療レビュー前の暫定値です。実運用前に必ず内容確認を行ってください。</p>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
