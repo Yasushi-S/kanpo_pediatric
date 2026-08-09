@@ -135,3 +135,19 @@ Cursor での実施内容をこのファイルの末尾に追記する。
 - 既存のツムラ単体データ（19→27処方拡充分含む）の値そのものは変更していない（`products.ツムラ.product_no` に既存の `tsumura_no` 値をそのまま移設）
 - Claude Code レビュー完了・ユーザー承認まで git commit しない
 ---
+
+## [2026-08-09] 実行 #6 ── modification_instructions.md 追加指示 #5（combinations.avoid 対称化の残り1件）── Claude Code が直接実施
+
+### 対応した指示
+- modification_instructions.md「[2026-08-09] 追加指示 #5 ── combinations.avoid 対称化の残り1件」
+- ユーザーの依頼により、本件は Cursor を介さず Claude Code が直接 `app.py` を編集して対応
+
+### 実施内容詳細
+- `五虎湯` の `combinations.avoid` に `麦門冬湯` を追加し、`麦門冬湯`→`五虎湯` の非対称を解消
+- `KAMPO_DATABASE` 全27処方の `combinations.avoid` を機械的に突き合わせるスクリプトを実行し、他に非対称なペアが残っていないことを確認（0件）
+- `python -m py_compile app.py` によるコンパイルチェック成功
+
+### 確認事項・備考
+- `combinations.avoid` は表示専用データであり、安全性判定ロジック（`check_combination_safety()`）に変更はない
+- Claude Code レビュー完了・ユーザー承認まで git commit しない
+---
