@@ -30,9 +30,15 @@ except ImportError:
     pass
 
 from flask import Flask, render_template, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+
+# VPS運用時、nginx リバースプロキシ経由でも request.remote_addr が
+# 実クライアントIPを指すようにする（X-Forwarded-For を信頼）。
+# 院内PC単体運用時（リバースプロキシなし）は無害（ヘッダ無ければ従来通り）。
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 LOG_DB_PATH = Path(__file__).resolve().parent / "instance" / "operation_log.db"
 
