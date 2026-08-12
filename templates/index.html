@@ -1027,7 +1027,7 @@
             <aside class="input-panel">
                 <div class="notice">
                     <strong>重要:</strong> 医療従事者向け参考ツールです。処方判断は必ず医師が行ってください。<br>
-                    対象年齢: 乳幼児（0〜6歳）。7歳以上には使用しないでください。
+                    対象年齢: 小児（0〜15歳）。16歳以上には使用しないでください。
                 </div>
                 <div class="notice-review" role="status">
                     <strong>レビュー待ち:</strong> 漢方薬データ（適応・エビデンス・生薬量・年齢換算係数・危険閾値・製品番号等）は医療従事者による内容確認前の暫定値です。実運用開始前に必ず検証してください。
@@ -1508,6 +1508,9 @@
                     if (kampo.notes.age_1_2) noteItems.push(`1〜2歳: ${kampo.notes.age_1_2}`);
                     if (kampo.notes.age_3_5) noteItems.push(`3〜5歳: ${kampo.notes.age_3_5}`);
                     if (kampo.notes.age_6) noteItems.push(`6歳: ${kampo.notes.age_6}`);
+                    if (kampo.notes.age_7_9) noteItems.push(`7〜9歳: ${kampo.notes.age_7_9}`);
+                    if (kampo.notes.age_10_12) noteItems.push(`10〜12歳: ${kampo.notes.age_10_12}`);
+                    if (kampo.notes.age_13_15) noteItems.push(`13〜15歳: ${kampo.notes.age_13_15}`);
                     if (kampo.notes.caution) noteItems.push(`服用上の注意: ${kampo.notes.caution}`);
                     if (noteItems.length > 0) {
                         notesHtml = `
