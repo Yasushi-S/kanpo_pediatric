@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>要望メモ</title>
+    <style>
+        :root { --accent: #1a3a5c; --bg: #f7f5f0; --border: #d5d0c6; --muted: #666; }
+        body { font-family: "Hiragino Sans", "Yu Gothic", sans-serif; background: var(--bg); margin: 0; color: #333; }
+        .wrap { max-width: 860px; margin: 24px auto; padding: 0 16px 48px; }
+        header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        h1 { font-size: 1.35rem; color: var(--accent); margin: 0; }
+        .header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .panel { background: #fff; border: 1px solid var(--border); padding: 16px; margin-top: 16px; }
+        label { display: block; margin: 10px 0 4px; font-weight: 600; }
+        input[type=text], select, textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--border); font: inherit; }
+        textarea { min-height: 80px; resize: vertical; }
+        button, .btn {
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            background: var(--accent);
+            color: #fff;
+            border: 1px solid var(--accent);
+            padding: 8px 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+        button.logout {
+            background: #fff;
+            color: var(--accent);
+        }
+        button.danger { background: #8a3b3b; border-color: #8a3b3b; color: #fff; }
+        .flash-ok { padding: 10px; margin-top: 12px; background: #e8f5ef; border: 1px solid #a8d5c0; }
+        .flash-error { padding: 10px; margin-top: 12px; background: #fde8e8; border: 1px solid #e0a0a0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+        th, td { border-bottom: 1px solid var(--border); padding: 10px 6px; vertical-align: top; text-align: left; }
+        th { color: var(--muted); font-weight: 600; }
+        .muted { color: var(--muted); font-size: 0.85rem; }
+        .memo-content { white-space: pre-wrap; word-break: break-word; }
+        .actions form { display: inline; }
+        details.edit { margin-top: 8px; }
+        @media (max-width: 375px) {
+            h1 { font-size: 1.15rem; }
+            .header-actions { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <h1>要望メモ</h1>
+            <div class="header-actions">
+                <a class="btn" href="{{ url_for('index') }}">← 漢方推奨に戻る</a>
+                <form method="post" action="{{ url_for('memo_logout') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="logout">ログアウト</button>
+                </form>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="{{ 'flash-ok' if category == 'ok' else 'flash-error' }}">{{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        <div class="panel">
+            <h2 style="margin-top:0;font-size:1.1rem;">新規メモ</h2>
+            <form method="post" action="{{ url_for('memo_index') }}">
+                {{ form.hidden_tag() }}
+                <label for="kind">種別</label>
+                {{ form.kind(id="kind") }}
+                <label for="content">内容（必須・最大2000文字）</label>
+                {{ form.content(
+                    id="content",
+                    rows=8,
+                    maxlength=2000,
+                    placeholder="例）夜尿を追加。小建中湯、柴胡桂枝湯あたり／抑肝散＋六君子湯の併用を推奨に出してほしい（食欲不振＋かんしゃく）／学童期のニキビ向け処方を増やしてほしい／文章でも箇条書きでも構いません"
+                ) }}
+                <p style="margin-top:14px;"><button type="submit">追加</button></p>
+            </form>
+        </div>
+
+        <div class="panel">
+            <h2 style="margin-top:0;font-size:1.1rem;">一覧（新しい順）</h2>
+            {% if not memos %}
+            <p class="muted">メモはまだありません。</p>
+            {% else %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>日時</th>
+                        <th>種別</th>
+                        <th>内容</th>
+                        <th>状態</th>
+                        <th>対応メモ</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in memos %}
+                    <tr>
+                        <td class="muted">{{ m.created_at }}</td>
+                        <td>{{ kind_labels.get(m.kind, m.kind) }}</td>
+                        <td>
+                            <div class="memo-content">{{ m.content }}</div>
+                            {% if m.detail %}<div class="muted memo-content">{{ m.detail }}</div>{% endif %}
+                        </td>
+                        <td>{{ status_labels.get(m.status, m.status) }}</td>
+                        <td class="muted">{{ m.resolution or '—' }}</td>
+                        <td class="actions">
+                            {% if m.status == 'open' %}
+                            <details class="edit">
+                                <summary>編集</summary>
+                                <form method="post" action="{{ url_for('memo_edit', memo_id=m.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <label>種別</label>
+                                    <select name="kind">
+                                        {% for k, label in kind_labels.items() %}
+                                        <option value="{{ k }}" {% if m.kind == k %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label>内容（必須・最大2000文字）</label>
+                                    <textarea name="content" rows="6" maxlength="2000" required>{{ m.content }}</textarea>
+                                    <p><button type="submit">更新</button></p>
+                                </form>
+                                <form method="post" action="{{ url_for('memo_delete', memo_id=m.id) }}" onsubmit="return confirm('削除しますか？');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="danger">削除</button>
+                                </form>
+                            </details>
+                            {% else %}
+                            <span class="muted">編集不可</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

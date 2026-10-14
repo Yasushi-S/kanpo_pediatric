@@ -118,12 +118,56 @@
             font-weight: 700;
             letter-spacing: 0.05em;
             margin-bottom: 4px;
+            padding: 0 120px;
         }
 
         header p {
             font-size: 0.85em;
             opacity: 0.8;
             letter-spacing: 0.12em;
+            padding: 0 120px;
+        }
+
+        .memo-link-header {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 14px;
+            border: 1.5px solid rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            text-decoration: none;
+            font-size: 0.875em;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .memo-link-header:hover {
+            background: rgba(255, 255, 255, 0.32);
+        }
+
+        .memo-link-short {
+            display: none;
+        }
+
+        .memo-footer {
+            text-align: center;
+            padding: 28px 16px 40px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .memo-footer p {
+            margin-bottom: 14px;
+        }
+
+        .memo-footer .btn {
+            text-decoration: none;
         }
 
         .notice {
@@ -1013,6 +1057,20 @@
             header h1 {
                 font-size: 1.35em;
             }
+
+            .memo-link-header {
+                right: 10px;
+                padding: 6px 10px;
+                font-size: 0.78em;
+            }
+
+            .memo-link-full {
+                display: none;
+            }
+
+            .memo-link-short {
+                display: inline;
+            }
         }
     </style>
 </head>
@@ -1020,6 +1078,10 @@
     <header>
         <h1>小児科漢方薬推奨システム</h1>
         <p>Kampo Recommender for Pediatrics</p>
+        <a href="/memo" class="memo-link-header">
+            <span class="memo-link-full">📝 要望メモ</span>
+            <span class="memo-link-short">📝 メモ</span>
+        </a>
     </header>
 
     <div class="container">
@@ -1685,5 +1747,10 @@
             resultsDiv.innerHTML = html;
         }
     </script>
+
+    <footer class="memo-footer">
+        <p>追加してほしい症状・漢方・併用などのご要望はこちら</p>
+        <a href="/memo" class="btn btn-primary">📝 要望メモを書く</a>
+    </footer>
 </body>
 </html>

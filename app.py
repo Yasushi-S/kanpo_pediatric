@@ -17,9 +17,11 @@ Flask Web Application
 creation_order.md に基づく暫定値を含む。実運用前に医療従事者による検証必須。
 """
 
+import hashlib
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import wraps
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -29,8 +31,14 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, abort
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import check_password_hash
+from flask_wtf import CSRFProtect, FlaskForm
+from wtforms import TextAreaField, SelectField, PasswordField
+from wtforms.validators import DataRequired, Length
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
@@ -38,9 +46,41 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 # VPS運用時、nginx リバースプロキシ経由でも request.remote_addr が
 # 実クライアントIPを指すようにする（X-Forwarded-For を信頼）。
 # 院内PC単体運用時（リバースプロキシなし）は無害（ヘッダ無ければ従来通り）。
+# gunicorn は systemd で 127.0.0.1:50010 にバインド（app.py の port=50005 は院内用）。
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-LOG_DB_PATH = Path(__file__).resolve().parent / "instance" / "operation_log.db"
+# セッションcookie設定（メモ認証用。推奨画面は認証なし）
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.permanent_session_lifetime = timedelta(days=30)
+
+csrf = CSRFProtect(app)
+
+# Flask-Limiter: デフォルトはメモリ。gunicorn 複数ワーカー時は制限が厳密でない場合あり
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
+
+# テスト時は LOG_DB_PATH / REQUESTS_DB_PATH 環境変数で一時パスに差し替え可（.env は触らない）
+_INSTANCE = Path(__file__).resolve().parent / "instance"
+LOG_DB_PATH = Path(os.environ["LOG_DB_PATH"]) if os.environ.get("LOG_DB_PATH") else _INSTANCE / "operation_log.db"
+REQUESTS_DB_PATH = Path(os.environ["REQUESTS_DB_PATH"]) if os.environ.get("REQUESTS_DB_PATH") else _INSTANCE / "requests.db"
+MEMO_PASSWORD_HASH = os.environ.get("MEMO_PASSWORD_HASH") or ""
+MEMO_KIND_LABELS = {
+    "symptom": "症状追加",
+    "combination": "併用追加",
+    "improvement": "改善要望",
+    "other": "その他",
+}
+MEMO_STATUS_LABELS = {
+    "open": "未対応",
+    "done": "対応済み",
+    "skipped": "見送り",
+}
 
 
 def init_log_db():
@@ -66,7 +106,7 @@ def log_operation(operation: str, detail: str = ""):
             "INSERT INTO operation_log (operated_at, ip_address, operation, detail) VALUES (?, ?, ?, ?)",
             (
                 datetime.now().isoformat(timespec="seconds"),
-                request.remote_addr or "-",
+                "-",  # IP は記録しない（要望メモ運用・VPS公開方針）
                 operation,
                 detail,
             ),
@@ -75,6 +115,109 @@ def log_operation(operation: str, detail: str = ""):
         conn.close()
     except Exception:
         pass  # ログ失敗でアプリを止めない
+
+
+def init_requests_db():
+    REQUESTS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(REQUESTS_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS request_memos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            content TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'open',
+            resolution TEXT NOT NULL DEFAULT '',
+            resolved_at TEXT,
+            updated_at TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def _memo_enabled() -> bool:
+    return bool(MEMO_PASSWORD_HASH)
+
+
+def _memo_hash_fingerprint() -> str:
+    # セッションcookieは読み取り可能なため、ハッシュ自体ではなくその要約値を保持する
+    if not MEMO_PASSWORD_HASH:
+        return ""
+    return hashlib.sha256(MEMO_PASSWORD_HASH.encode("utf-8")).hexdigest()[:16]
+
+
+def _memo_logged_in() -> bool:
+    if not _memo_enabled():
+        return False
+    if not session.get("memo_auth"):
+        return False
+    if session.get("memo_fp") != _memo_hash_fingerprint():
+        session.pop("memo_auth", None)
+        session.pop("memo_fp", None)
+        return False
+    return True
+
+
+def memo_login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not _memo_enabled():
+            return render_template("memo_disabled.html"), 503
+        if not _memo_logged_in():
+            return redirect(url_for("memo_login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+class MemoLoginForm(FlaskForm):
+    password = PasswordField("パスワード", validators=[DataRequired()])
+
+
+class MemoCreateForm(FlaskForm):
+    kind = SelectField(
+        "種別",
+        choices=list(MEMO_KIND_LABELS.items()),
+        validators=[DataRequired()],
+    )
+    content = TextAreaField(
+        "内容",
+        validators=[DataRequired(), Length(max=2000)],
+    )
+
+
+class MemoEditForm(FlaskForm):
+    kind = SelectField(
+        "種別",
+        choices=list(MEMO_KIND_LABELS.items()),
+        validators=[DataRequired()],
+    )
+    content = TextAreaField(
+        "内容",
+        validators=[DataRequired(), Length(max=2000)],
+    )
+
+
+def _get_memo(memo_id: int) -> Optional[dict]:
+    conn = sqlite3.connect(REQUESTS_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT * FROM request_memos WHERE id = ?",
+        (memo_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def _list_memos() -> List[dict]:
+    conn = sqlite3.connect(REQUESTS_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM request_memos ORDER BY created_at DESC, id DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # =============================================================================
@@ -2802,6 +2945,7 @@ def index():
 
 
 @app.route("/recommend", methods=["POST"])
+@csrf.exempt  # 既存 fetch JSON API を壊さない
 def recommend():
     data = request.get_json(silent=True) or {}
     selected_symptoms = data.get("symptoms", [])
@@ -2908,6 +3052,7 @@ def recommend():
 
 
 @app.route("/estimate-sho", methods=["POST"])
+@csrf.exempt  # 既存 fetch JSON API を壊さない
 def estimate_sho_route():
     """選択症状から証（体質）の傾向を推定する（参考情報）"""
     data = request.get_json(silent=True) or {}
@@ -2931,6 +3076,131 @@ def kampo_detail(name):
     return jsonify({"error": "漢方薬が見つかりません"}), 404
 
 
+# --- 要望メモ（パスワード保護。推奨機能とは独立） ---
+
+@app.route("/memo/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute; 20 per hour")
+def memo_login():
+    if not _memo_enabled():
+        return render_template("memo_disabled.html"), 503
+    if _memo_logged_in():
+        return redirect(url_for("memo_index"))
+    form = MemoLoginForm()
+    if form.validate_on_submit():
+        if check_password_hash(MEMO_PASSWORD_HASH, form.password.data or ""):
+            session.permanent = True
+            session["memo_auth"] = True
+            session["memo_fp"] = _memo_hash_fingerprint()
+            log_operation("memo_login_success", "")
+            return redirect(url_for("memo_index"))
+        log_operation("memo_login_failure", "bad_password")
+        flash("パスワードが正しくありません。", "error")
+    return render_template("memo_login.html", form=form)
+
+
+@app.route("/memo/logout", methods=["POST"])
+def memo_logout():
+    session.pop("memo_auth", None)
+    session.pop("memo_fp", None)
+    return redirect(url_for("index"))
+
+
+@app.route("/memo", methods=["GET", "POST"])
+@memo_login_required
+@limiter.limit("30 per day", methods=["POST"])
+def memo_index():
+    create_form = MemoCreateForm()
+    if request.method == "POST":
+        if create_form.validate_on_submit():
+            now = datetime.now().isoformat(timespec="seconds")
+            conn = sqlite3.connect(REQUESTS_DB_PATH)
+            cur = conn.execute(
+                """
+                INSERT INTO request_memos
+                (created_at, kind, content, detail, status, resolution, resolved_at, updated_at)
+                VALUES (?, ?, ?, ?, 'open', '', NULL, ?)
+                """,
+                (
+                    now,
+                    create_form.kind.data,
+                    create_form.content.data.strip(),
+                    "",  # 補足欄は廃止。既存 detail 列は空で保存
+                    now,
+                ),
+            )
+            new_id = cur.lastrowid
+            conn.commit()
+            conn.close()
+            log_operation("memo_add", f"id={new_id}")
+            flash("メモを追加しました。", "ok")
+            return redirect(url_for("memo_index"))
+        flash("入力内容を確認してください。", "error")
+    memos = _list_memos()
+    return render_template(
+        "memo.html",
+        form=create_form,
+        memos=memos,
+        kind_labels=MEMO_KIND_LABELS,
+        status_labels=MEMO_STATUS_LABELS,
+    )
+
+
+@app.route("/memo/<int:memo_id>/edit", methods=["POST"])
+@memo_login_required
+def memo_edit(memo_id: int):
+    memo = _get_memo(memo_id)
+    if not memo:
+        abort(404)
+    if memo["status"] != "open":
+        flash("対応済み・見送りのメモは編集できません。", "error")
+        return redirect(url_for("memo_index"))
+    form = MemoEditForm()
+    if form.validate_on_submit():
+        now = datetime.now().isoformat(timespec="seconds")
+        conn = sqlite3.connect(REQUESTS_DB_PATH)
+        conn.execute(
+            """
+            UPDATE request_memos
+            SET kind = ?, content = ?, updated_at = ?
+            WHERE id = ? AND status = 'open'
+            """,
+            (
+                form.kind.data,
+                form.content.data.strip(),
+                now,
+                memo_id,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        log_operation("memo_edit", f"id={memo_id}")
+        flash("メモを更新しました。", "ok")
+    else:
+        flash("入力内容を確認してください。", "error")
+    return redirect(url_for("memo_index"))
+
+
+@app.route("/memo/<int:memo_id>/delete", methods=["POST"])
+@memo_login_required
+def memo_delete(memo_id: int):
+    memo = _get_memo(memo_id)
+    if not memo:
+        abort(404)
+    if memo["status"] != "open":
+        flash("対応済み・見送りのメモは削除できません。", "error")
+        return redirect(url_for("memo_index"))
+    conn = sqlite3.connect(REQUESTS_DB_PATH)
+    conn.execute(
+        "DELETE FROM request_memos WHERE id = ? AND status = 'open'",
+        (memo_id,),
+    )
+    conn.commit()
+    conn.close()
+    log_operation("memo_delete", f"id={memo_id}")
+    flash("メモを削除しました。", "ok")
+    return redirect(url_for("memo_index"))
+
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("errors/404.html"), 404
@@ -2942,7 +3212,9 @@ def server_error(e):
 
 
 init_log_db()
+init_requests_db()
 
 if __name__ == "__main__":
     init_log_db()
+    init_requests_db()
     app.run(host='0.0.0.0', port=50005, debug=False)
