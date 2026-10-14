@@ -251,8 +251,8 @@ kanpo_pediatric/
 ├── instance/                      # 実行時生成（Git 対象外）
 ├── docs/
 ├── creation_order.md              # 本発注書
-├── modification_instructions.md   # 以後の改修指示（今後作成）
-└── modification_log.md            # 実行記録（今後作成）
+├── docs/修正指示書.md   # 以後の改修指示（今後作成）
+└── docs/修正実行書.md            # 実行記録（今後作成）
 ```
 
 ---
@@ -294,9 +294,9 @@ python app.py
 # Cursor ルール（kanpo_pediatric）
 
 ## 基本方針
-- 作成発注書（creation_order.md）および modification_instructions.md の指示に従い、忠実にコーディングを行う
+- 作成発注書（creation_order.md）および docs/修正指示書.md の指示に従い、忠実にコーディングを行う
 - DB スキーマ・既存データへの変更を伴う場合は、必ず作業前にユーザーに確認を取る
-- コーディング完了後、modification_log.md の末尾に実施内容を追記する（新規ファイル作成禁止）
+- コーディング完了後、docs/修正実行書.md の末尾に実施内容を追記する（新規ファイル作成禁止）
 - 修正対象ファイルを必ず読んでから変更する（読まずに変更禁止）
 - 発注書・修正指示書に記載のない変更（リファクタリング・コメント追加等）は行わない
 - SQL クエリはパラメータバインディングを使用（f-string での SQL 組み立て禁止）
@@ -304,12 +304,12 @@ python app.py
 - 生薬量・年齢換算係数・危険閾値など臨床安全性に関わる数値を変更する場合は、必ずその根拠をコメントで明記し、ユーザー（医療従事者）に確認を取る
 - Claude Code のレビューが完了するまで git commit しない
 
-## 実行記録フォーマット（modification_log.md）
+## 実行記録フォーマット（docs/修正実行書.md）
 ---
 ## [YYYY-MM-DD] 実行 #N ── <一行要約>
 
 ### 対応した指示
-- （creation_order.md または modification_instructions.md の該当箇所）
+- （creation_order.md または docs/修正指示書.md の該当箇所）
 
 ### 実施内容詳細
 （実際に行った変更を箇条書きで記載）
@@ -323,8 +323,8 @@ python app.py
 
 ## ドキュメント
 - creation_order.md（作成発注書）
-- modification_instructions.md（修正指示）
-- modification_log.md（実行記録）
+- docs/修正指示書.md（修正指示）
+- docs/修正実行書.md（実行記録）
 ```
 
 ---

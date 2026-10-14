@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 
@@ -57,6 +58,7 @@ instance/
 # App logs (runtime generated)
 app.log
 *.log
+changes.log
 
 # Testing / Coverage
 .pytest_cache/
